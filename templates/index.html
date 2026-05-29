@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helmet Detection System</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        /* Upload Card Styling */
+        .upload-card {
+            background-color: #fff;
+            width: 90%;
+            max-width: 600px;
+            padding: 40px;
+            border-radius: 30px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .drop-zone {
+            border: 2px dashed #ccc;
+            border-radius: 20px;
+            padding: 60px 20px;
+            cursor: pointer;
+            color: #666;
+            font-size: 1.5rem;
+            transition: 0.3s;
+            background-color: #f8faff;
+        }
+
+        .drop-zone:hover {
+            border-color: #5b8ad3;
+            background-color: #f0f4ff;
+        }
+
+        .btn-start {
+            background-color: #5b8ad3;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 15px;
+            border-radius: 15px;
+            font-size: 1.2rem;
+            margin-top: 30px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-start:hover {
+            background-color: #4a75b8;
+        }
+
+        #videoInput { display: none; }
+
+        /* Progress Bar */
+        #progress-wrapper {
+            display: none;
+            margin-top: 20px;
+            background: #eee;
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #5b8ad3;
+            transition: width 0.3s;
+        }
+
+        /* Result Page Styling */
+        #result-page {
+            display: none;
+            width: 95%;
+            max-width: 1200px;
+        }
+
+        .video-box {
+            background: #1a1a1a;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        #stream-img {
+            width: 100%;
+            display: block;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #222;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .stat-label { color: #888; font-size: 0.9rem; margin-bottom: 10px; }
+        .stat-value { font-size: 2.5rem; font-weight: bold; }
+        #fps-val { color: #8bc34a; }
+        #violation-val { color: #f44336; }
+
+        .tip { margin-top: 20px; color: #555; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+    <h1>Helmet Detection System</h1>
+
+    <div id="upload-page" class="upload-card">
+        <div class="drop-zone" onclick="document.getElementById('videoInput').click()">
+            <span id="upload-text">Click to upload test video</span>
+            <input type="file" id="videoInput" accept="video/*" onchange="fileSelected()">
+        </div>
+        
+        <div id="progress-wrapper">
+            <div id="progress-bar"></div>
+        </div>
+
+        <button class="btn-start" onclick="uploadFile()">Start Detection</button>
+    </div>
+
+    <div id="result-page">
+        <div class="video-box">
+            <img id="stream-img" src="" alt="Stream Loading...">
+        </div>
+        
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-label">Detection FPS</div>
+                <div id="fps-val" class="stat-value">0.0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Violations</div>
+                <div id="violation-val" class="stat-value">0</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 選擇檔案後的顯示邏輯
+        function fileSelected() {
+            const file = document.getElementById('videoInput').files[0];
+            if (file) {
+                document.getElementById('upload-text').innerText = "Selected: " + file.name;
+            }
+        }
+
+        // 上傳與切換頁面邏輯
+        function uploadFile() {
+            const fileInput = document.getElementById('videoInput');
+            const file = fileInput.files[0];
+            if(!file) return alert("Please select a video first.");
+
+            document.getElementById('progress-wrapper').style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    document.getElementById('progress-bar').style.width = percent + "%";
+                }
+            };
+
+            xhr.onload = () => {
+                if(xhr.status === 200) {
+                    document.getElementById('upload-page').style.display = 'none';
+                    document.getElementById('result-page').style.display = 'block';
+                    
+                    // 緩衝延遲並加載串流
+                    setTimeout(() => {
+                        const streamImg = document.getElementById('stream-img');
+                        streamImg.src = "/video_feed?t=" + new Date().getTime();
+                        setInterval(fetchStats, 500);
+                    }, 1500);
+                }
+            };
+            xhr.open("POST", "/upload_video");
+            xhr.send(formData);
+        }
+
+        // 取得後端數據
+        async function fetchStats() {
+            try {
+                const response = await fetch('/stats');
+                const data = await response.json();
+                document.getElementById('fps-val').innerText = data.fps.toFixed(1);
+                document.getElementById('violation-val').innerText = data.violations;
+            } catch (e) {}
+        }
+    </script>
+</body>
+</html>
