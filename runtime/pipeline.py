@@ -94,6 +94,7 @@ def process_frame(
     pairs = pair_person_motorcycle(
         detections
     )
+    frame_violations = 0
 
     runtime.person_count = sum(
         1 for det in detections
@@ -313,11 +314,26 @@ def process_frame(
     runtime.urgency_score = urgency
     runtime.last_yolo_run = should_detect
 
-    if frame_violations > 0 and not runtime.violation_active:
-        runtime.violation_count += 1
-        runtime.violation_active = True
-    elif frame_violations == 0:
-        runtime.violation_active = False
+
+    # =====================================================
+    # Violation Cooldown System
+    # =====================================================
+
+    if not hasattr(runtime, "last_violation_frame"):
+        runtime.last_violation_frame = -999
+
+    VIOLATION_COOLDOWN = 30
+
+    if frame_violations > 0:
+
+        if (
+            frame_idx - runtime.last_violation_frame
+            > VIOLATION_COOLDOWN
+        ):
+
+            runtime.violation_count += 1
+
+            runtime.last_violation_frame = frame_idx
 
     runtime.violation_frame_count += frame_violations
 
