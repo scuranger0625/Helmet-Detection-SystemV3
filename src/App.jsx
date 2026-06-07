@@ -297,25 +297,171 @@ export default function App() {
 
         // merge key runtime fields into results for live UI
         setResults(prev => {
+
           if (!prev) return prev;
+
+          // =========================================
+          // Backend Stats
+          // =========================================
+          const riderCount =
+            json.rider_count ?? 0;
+
+          // 事件級違規
+          const noHelmetCount =
+            json.event_violations
+            ?? json.violations
+            ?? 0;
+
+          // frame級違規
+          const frameViolations =
+            json.frame_violations
+            ?? 0;
+
+          // 安全帽數量
+          const helmetCount = Math.max(
+            riderCount - noHelmetCount,
+            0
+          );
+
+          // 避免 division by zero
+          const totalDetections =
+            riderCount;
+
+          // =========================================
+          // Risk Level
+          // =========================================
+          let riskLevel = "Low";
+
+          if (noHelmetCount >= 5) {
+
+            riskLevel = "High";
+
+          } else if (noHelmetCount >= 2) {
+
+            riskLevel = "Medium";
+          }
+
+          // =========================================
+          // Update Results
+          // =========================================
           return {
+
             ...prev,
-            avgInference: json.avg_inference_ms ?? prev.avgInference,
-            yoloCalls: json.yolo_calls ?? prev.yoloCalls,
-            savedRatio: json.saved_ratio ?? prev.savedRatio,
-            motion: json.motion ?? prev.motion,
-            urgency: json.urgency ?? prev.urgency,
-            riderCount: json.rider_count ?? prev.riderCount,
-            totalDetections: json.rider_count ?? prev.totalDetections,
-            fps: json.fps ?? prev.fps,
-            fps_p95: json.fps_p95 ?? prev.fps_p95,
-            infer_ms_avg: json.infer_ms_avg ?? prev.infer_ms_avg,
-            detect_ratio: json.detect_ratio ?? prev.detect_ratio,
-            cache_hit_rate: json.cache_hit_rate ?? prev.cache_hit_rate,
-            detector_calls_per_minute: json.detector_calls_per_minute ?? prev.detector_calls_per_minute,
-            budget_pressure: json.budget_pressure ?? prev.budget_pressure,
+
+            // =====================================
+            // Core Counts
+            // =====================================
+            noHelmetCount,
+
+            helmetCount,
+
+            totalDetections,
+
+            frameViolations,
+
+            riskLevel,
+
+            // =====================================
+            // Runtime Metrics
+            // =====================================
+            motion:
+              json.motion ?? prev.motion,
+
+            urgency:
+              json.urgency ?? prev.urgency,
+
+            riderCount,
+
+            yoloCalls:
+              json.yolo_calls
+              ?? prev.yoloCalls,
+
+            savedRatio:
+              json.saved_ratio
+              ?? prev.savedRatio,
+
+            avgInference:
+              json.avg_inference_ms
+              ?? prev.avgInference,
+
+            yoloRun:
+              json.yolo_run
+              ?? prev.yoloRun,
+
+            // =====================================
+            // FPS
+            // =====================================
+            fps:
+              json.fps
+              ?? prev.fps,
+
+            fps_avg:
+              json.fps_avg
+              ?? prev.fps_avg,
+
+            fps_p95:
+              json.fps_p95
+              ?? prev.fps_p95,
+
+            // =====================================
+            // Inference Metrics
+            // =====================================
+            infer_ms_avg:
+              json.infer_ms_avg
+              ?? prev.infer_ms_avg,
+
+            preprocess_ms_avg:
+              json.preprocess_ms_avg
+              ?? prev.preprocess_ms_avg,
+
+            draw_ms_avg:
+              json.draw_ms_avg
+              ?? prev.draw_ms_avg,
+
+            total_ms_avg:
+              json.total_ms_avg
+              ?? prev.total_ms_avg,
+
+            // =====================================
+            // Scheduler Metrics
+            // =====================================
+            detect_ratio:
+              json.detect_ratio
+              ?? prev.detect_ratio,
+
+            cache_hit_rate:
+              json.cache_hit_rate
+              ?? prev.cache_hit_rate,
+
+            detector_calls_per_second:
+              json.detector_calls_per_second
+              ?? prev.detector_calls_per_second,
+
+            detector_calls_per_minute:
+              json.detector_calls_per_minute
+              ?? prev.detector_calls_per_minute,
+
+            budget_pressure:
+              json.budget_pressure
+              ?? prev.budget_pressure,
+
+            // =====================================
+            // Frame Info
+            // =====================================
+            framesAnalyzed:
+              json.total_frames
+              ?? prev.framesAnalyzed,
+
+            confidence:
+              (
+                (json.fps ?? 0) * 5
+              ).toFixed(1),
           };
         });
+
+
+
+        
       } catch (e) {
         // ignore polling errors
       }
@@ -622,14 +768,35 @@ export default function App() {
                 <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Risk Assessment</div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                   <Badge color={C.amber} bg={C.amberBg}>{results.riskLevel} Risk</Badge>
-                  <span style={{ fontSize: 12, color: C.muted }}>{((results.noHelmetCount / results.totalDetections) * 100).toFixed(0)}% violation rate</span>
+                  <span style={{ fontSize: 12, color: C.muted }}>{(
+  (
+    results.noHelmetCount
+    / Math.max(results.totalDetections, 1)
+  ) * 100
+).toFixed(0)}% violation rate</span>
                 </div>
                 <div style={{ fontSize: 12, display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ color: C.muted }}>Compliance rate</span>
-                  <span style={{ fontWeight: 700, color: C.green }}>{((results.helmetCount / results.totalDetections) * 100).toFixed(0)}%</span>
+                  <span style={{ fontWeight: 700, color: C.green }}>{(
+  (
+    results.helmetCount
+    / Math.max(results.totalDetections, 1)
+  ) * 100
+).toFixed(0)}%</span>
                 </div>
                 <div style={{ background: C.surface, borderRadius: 4, height: 8, overflow: "hidden", border: `1px solid ${C.border}` }}>
-                  <div style={{ width: `${(results.helmetCount / results.totalDetections) * 100}%`, height: "100%", background: C.green }} />
+                  <div
+  style={{
+    width: `${
+      (
+        results.helmetCount
+        / Math.max(results.totalDetections, 1)
+      ) * 100
+    }%`,
+    height: "100%",
+    background: C.green
+  }}
+/>
                 </div>
               </div>
 
