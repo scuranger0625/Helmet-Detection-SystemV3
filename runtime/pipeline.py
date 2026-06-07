@@ -289,7 +289,7 @@ def process_frame(
 
     cv2.putText(
         frame,
-        f"VIOLATIONS: {runtime.violation_frame_count}",
+        f"EVENT VIOLATIONS: {runtime.violation_count}",
         (20, 200),
         cv2.FONT_HERSHEY_SIMPLEX,
         1,
@@ -314,28 +314,40 @@ def process_frame(
     runtime.urgency_score = urgency
     runtime.last_yolo_run = should_detect
 
-
     # =====================================================
-    # Violation Cooldown System
+    # Violation State System
     # =====================================================
 
-    if not hasattr(runtime, "last_violation_frame"):
-        runtime.last_violation_frame = -999
+    if not hasattr(runtime, "violation_active"):
+        runtime.violation_active = False
 
-    VIOLATION_COOLDOWN = 30
-
+    # =========================================
+    # 畫面中有違規
+    # =========================================
     if frame_violations > 0:
 
-        if (
-            frame_idx - runtime.last_violation_frame
-            > VIOLATION_COOLDOWN
-        ):
+        # 只有從:
+        # 無違規 -> 有違規
+        # 才算新事件
+        if not runtime.violation_active:
 
             runtime.violation_count += 1
 
-            runtime.last_violation_frame = frame_idx
+            runtime.violation_active = True
 
-    runtime.violation_frame_count += frame_violations
+    # =========================================
+    # 畫面恢復正常
+    # =========================================
+    else:
+
+        runtime.violation_active = False
+
+    # =========================================
+    # frame-level violations
+    # =========================================
+    runtime.violation_frame_count += (
+        frame_violations
+    )
 
     modules.evaluator.update(
         fps=fps,
@@ -345,56 +357,6 @@ def process_frame(
         infer_ms=infer_ms,
         draw_ms=draw_ms,
         total_ms=total_ms
-    )
-
-    cv2.putText(
-        frame,
-        f"FPS: {fps:.2f}",
-        (20, 40),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        (0, 255, 0),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"YOLO RUN: {should_detect}",
-        (20, 80),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        (0, 255, 255),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"MOTION: {motion_score:.4f}",
-        (20, 120),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        (255, 255, 0),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"URGENCY: {urgency:.3f}",
-        (20, 160),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        (255, 128, 0),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"VIOLATIONS: {runtime.violation_count}",
-        (20, 200),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        (0, 0, 255),
-        2
     )
 
     return frame
