@@ -283,6 +283,8 @@ Chen-Hong
 National Chung Cheng University  
 Graduate Institute of Telecommunications and Communication
 
+洪禎、林文宇、陳圓通、郭依芸
+
 ---
 
 # 專案核心思想
